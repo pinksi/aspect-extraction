@@ -13,16 +13,16 @@ def apply_extraction(review_body, nlp):
     # rule1
     r1_pairs = []
     for token in doc:
-        if token.dep_ == "amod":
+        if token.dep_ in ("amod", "advmod") and token.head.pos_ == "NOUN":
             r1_pairs.append((token.head.text, token.text))
             
-    # rule2
+    # rule2 - Ex: The phone is very lightweight to carry.
     r2_pairs = []
     for token in doc:
         A = ""
         M = ""
         for child in token.children:
-            if child.dep_ == "nsubj":
+            if child.dep_ == "nsubj" and child.pos_ == "NOUN":
                 A = child.text
                 
             if not M and child.dep_ == "dobj":
@@ -81,6 +81,53 @@ def apply_extraction(review_body, nlp):
         
         if A and M:
             r5_pairs.append((A, token.text))
+
+
+    # rule 6 - Ex. I like the lens of the screen.
+    r6_pairs = []
+    for token in doc:
+        A = ""
+        M = ""
+        if token.pos_ == "VERB":
+            for child in token.children:
+                if child.dep_ == "nsubj" and child.pos_ == "PRON":
+                    continue
+                if child.dep_ == "dobj" and child.pos_ == "NOUN":
+                    A = child.text
+                    M = token.text
+        if A and M:
+            r6_pairs.append((A, M))
+                
+                
+    # rule 7 - I would like to comment on the camera of this phone.
+    A = ""
+    M= ""
+    r7_pairs=[]
+    for i in range(len(doc)-1):
+        if doc[i].pos_ == "VERB" and doc[i+1].pos_ == "ADP" and doc[i+1].dep_ == "prep":
+            for token in doc[i+1:]:
+                for child in token.children:
+                    if child.dep_ == "pobj" and child.pos_ == "NOUN":
+                        A = child.text
+                        M = doc[i].text
+                break   
+        if A and M:
+            r7_pairs.append((A, M))
+            break
+            
+    # rule 8 - It is easy to use
+    r8_pairs = []
+    for token in doc:
+        A = ""
+        M = ""
+        if token.pos_ == "AUX" and len([child for child in token.children]) >= 2:
+            for child in token.children:
+                if child.dep_ == "acomp" and child.pos_ == "ADJ":
+                    M = child.text
+                if child.dep_ == "xcomp" and child.pos_ in ("VERB", "NOUN"):
+                    A = child.text
+            if A and M:
+                r8_pairs.append((A, M))
             
     # aspects = []
     aspects_pairs = r1_pairs + r2_pairs + r3_pairs + r4_pairs + r5_pairs
